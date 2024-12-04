@@ -2,6 +2,7 @@
 
 const int OFF_PWM = 0;
 const int ON_PWM = 135; // changing this from 255
+const int ON_SUSTAIN_PWM = 255;
 const int POT_PIN = 36;
 //const int STARTUP_DURATION = 13;
 //const int VELOCITY_DURATION = 40;
