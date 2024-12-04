@@ -1,14 +1,14 @@
 #pragma once
 
 const int OFF_PWM = 0;
-const int ON_PWM = 255;
+const int ON_PWM = 135; // changing this from 255
 const int POT_PIN = 36;
 //const int STARTUP_DURATION = 13;
 //const int VELOCITY_DURATION = 40;
 //const int TOTAL_ON_DURATION = STARTUP_DURATION + VELOCITY_DURATION;
-const int NOTE_HOLD_PWM = 90;
-const int NOTE_MIN_PWM = 115;
-const int NOTE_MAX_PWM = 255;
+const int NOTE_HOLD_PWM = 135; // 90;
+const int NOTE_MIN_PWM = 135; //115; 
+const int NOTE_MAX_PWM = 200; // changing from 255
 const int NOTE_MID_PWM = (NOTE_MIN_PWM + NOTE_MAX_PWM) / 2;
 const int MIN_MIDI_VELOCITY = 0;
 const int MAX_MIDI_VELOCITY = 127;
@@ -24,11 +24,15 @@ const int MAX_NOTE_ID = 108;
 // const int SUSTAIN_VELOCITY = 127;
 // const int SUSTAIN_HOLD_PWM = 50;
 // const int SUSTAIN_DEACTIVATE_TIME_REQUIRED = 200;
-const int SDA_PIN = 21;
-const int SCL_PIN = 22;
+// ESP32-s3 settings:
+const int SDA_PIN = 8;
+const int SCL_PIN = 9;
+// ESP32 settings:
+// const int SDA_PIN = 21;
+// const int SCL_PIN = 22;
 const int MIN_STARTUP_MS     = 18;
 const int MAX_STARTUP_MS     = 18;
-const int VELOCITY_MS        = 45;
+const int VELOCITY_MS        = 60; //45;
 const int MIN_DEACTIVATE_MS  = 75;
 const int MAX_DEACTIVATE_MS  = 80;
 const int FAST_DEACTIVATE_MS = 52;

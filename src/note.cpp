@@ -6,8 +6,11 @@
 int Note::getMidiId() { return this->midiId; }
 
 int Note::calculateVelocity(int midiVelocity) {
+  //return 0;
+
   // read the pot value to set volume
-  int potValue = analogRead(POT_PIN);
+  // int potValue = analogRead(POT_PIN);
+  int potValue = 4095;
   // map a range of 0-4095 to a range of 0.5-1.5
   float velocityScale =  0.5 + ((1.5 - 0.5) / (4096.0)) * (potValue - 0.5);
 
@@ -16,7 +19,8 @@ int Note::calculateVelocity(int midiVelocity) {
   int mappedVelocity = NOTE_MIN_PWM + round(slope * midiVelocity);
 
   // scale the volume
-  int scaledVelocity = mappedVelocity * velocityScale;
+  //int scaledVelocity = mappedVelocity * velocityScale;
+  int scaledVelocity = mappedVelocity;
   if(scaledVelocity > NOTE_MAX_PWM) {
     return NOTE_MAX_PWM;
   } else if(scaledVelocity < NOTE_MIN_PWM) {
@@ -32,7 +36,7 @@ void Note::addToSchedule(int velocity) {
 
 	if(velocity > 0) //if note on command
 	{
-		int velocityMs = round(((-25 * velocity) / (double)127) + VELOCITY_MS);
+		int velocityMs = round(((-40 * velocity) / (double)127) + VELOCITY_MS);
 		instances++;
 		if(instances == 1) //if note is scheduled to deactivate (was 0 before instances++)
 		{
@@ -162,20 +166,29 @@ void Note::processSchedule() {
 		schedule[STARTUP].at(1) >= schedule[OFF].at(1))
 	{
 		schedule[OFF].erase(++schedule[OFF].begin());
-    piano.addCommand(Command(this->getMidiId(), ON_PWM));
+    //piano.addCommand(Command(this->getMidiId(), ON_PWM));
+	int velocity = schedule[VELOCITY].at(1);
+	int pwmValue = 128 + ((velocity * 127) / 127);  // Maps velocity 1-127 to additional PWM 1-127
+        piano.addCommand(Command(this->getMidiId(), pwmValue));
 	}
 	if(schedule[ACTIVATION].size() > 1 && schedule[STARTUP].size() > 1 && schedule[VELOCITY].size() > 1 &&
 		ms >= schedule[ACTIVATION].at(1) && schedule[ACTIVATION].at(1) >= schedule[STARTUP].at(1))
 	{
 		schedule[STARTUP].erase(++schedule[STARTUP].begin());
-    piano.addCommand(Command(this->getMidiId(), this->calculateVelocity(schedule[VELOCITY].at(1))));
+    //piano.addCommand(Command(this->getMidiId(), this->calculateVelocity(schedule[VELOCITY].at(1))));
+	int velocity = schedule[VELOCITY].at(1);
+	int pwmValue = 128 + ((velocity * 127) / 127);  // Maps velocity 1-127 to additional PWM 1-127
+	piano.addCommand(Command(this->getMidiId(), pwmValue));
 	}
 	if(schedule[ON].size() > 1 && schedule[ACTIVATION].size() > 1 &&
 		ms >= schedule[ON].at(1) && schedule[ON].at(1) >= schedule[ACTIVATION].at(1))
 	{
 		schedule[ACTIVATION].erase(++schedule[ACTIVATION].begin());
 		schedule[VELOCITY].erase(++schedule[VELOCITY].begin());
+		//int velocity = schedule[VELOCITY].at(1);
+	//int pwmValue = 128 + ((velocity * 127) / 127); 
     piano.addCommand(Command(this->getMidiId(), NOTE_HOLD_PWM));
+	//piano.addCommand(Command(this->getMidiId(), pwmValue));
 	}
 	if(schedule[DEACTIVATION].size() > 1 && schedule[ON].size() > 1 &&
 		ms >= schedule[DEACTIVATION].at(1) && schedule[DEACTIVATION].at(1) >= schedule[ON].at(1))

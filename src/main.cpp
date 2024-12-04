@@ -17,11 +17,35 @@ PCA9635 board5(0x44);
 PCA9635 board6(0x45);
 PCA9635 board7(0x46);
 
-BLEMIDI_CREATE_INSTANCE("Amadeus", MIDI)
+BLEMIDI_CREATE_INSTANCE("Amadeus", MIDI);
+
+bool isConnected = false;
 
 void setup() {
   Serial.begin(115200);
-  MIDI.begin(MIDI_CHANNEL_OMNI);
+  Serial.println("Setup started");
+
+  //MIDI.begin(MIDI_CHANNEL_OMNI);
+  MIDI.begin();
+
+  // BLEMIDI.setHandleConnected([]() {
+  //   isConnected = true;
+  //   Serial.println("Connected!");
+  // });
+
+  // BLEMIDI.setHandleDisconnected([]() {
+  //   isConnected = false;
+  //   Serial.println("Disconnected :( ");
+  // });
+
+  // MIDI.setHandleNoteOn([](byte channel, byte note, byte velocity) {
+  //   Serial.println("Received note on!");
+  // });
+  // MIDI.setHandleNoteOff([](byte channel, byte note, byte velocity) {
+  //   Serial.println("Received note off!");
+  // });
+
+  
 
 //  BLEMIDI.setHandleConnected([]() { schedule.connected(); });
 //  BLEMIDI.setHandleDisconnected([]() { schedule.disconnected(); });
@@ -30,11 +54,19 @@ void setup() {
 //  schedule.poweredOn();
 
   // UPDATE: this needs to use the addToSchedule function
-  MIDI.setHandleNoteOn([](uint8_t _, uint8_t noteId, uint8_t velocity) { piano.scheduleNote(noteId, velocity); });
-  MIDI.setHandleNoteOff([](uint8_t _, uint8_t noteId, uint8_t velocity) { piano.scheduleNote(noteId, 0); });
-  MIDI.setHandleControlChange([](uint8_t channel, uint8_t number, uint8_t value) { piano.scheduleSustain(channel, number, value); });
+  MIDI.setHandleNoteOn([](uint8_t _, uint8_t noteId, uint8_t velocity) { 
+    piano.scheduleNote(noteId, velocity); 
+    Serial.print("Received note on: ");
+    Serial.println(velocity); });
+  MIDI.setHandleNoteOff([](uint8_t _, uint8_t noteId, uint8_t velocity) { 
+    piano.scheduleNote(noteId, 0); 
+    Serial.println("Received note off!"); });
+  MIDI.setHandleControlChange([](uint8_t channel, uint8_t number, uint8_t value) { 
+    piano.scheduleSustain(channel, number, value); 
+    Serial.println("Received control change!");
+    });
   
-  Wire.begin(SDA_PIN, SCL_PIN);
+   Wire.begin(SDA_PIN, SCL_PIN);
   
   board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
   for (int channel = 0; channel < board1.channelCount(); channel++) {
@@ -88,29 +120,31 @@ void loop() {
   // loop through the commands and find which ones need to run
   for (auto it = piano.commands.begin(); it != piano.commands.end(); it++) {
     int midiId = it->getMidiId();
+    int pwm = it->getPwm();
+    //pwm = 90;
     if (midiId >= BOARD_1_MIN_ID && midiId <= BOARD_1_MAX_ID) {
-      board1.write1(midiId - BOARD_1_MIN_ID, it->getPwm());
+      board1.write1(midiId - BOARD_1_MIN_ID, pwm);
     } else if (midiId >= BOARD_2_MIN_ID && midiId <= BOARD_2_MAX_ID) {
-      board2.write1(midiId - BOARD_2_MIN_ID, it->getPwm());
+      board2.write1(midiId - BOARD_2_MIN_ID, pwm);
     } else if (midiId >= BOARD_3_MIN_ID && midiId <= BOARD_3_MAX_ID) {
-      board3.write1(midiId - BOARD_3_MIN_ID, it->getPwm());
+      board3.write1(midiId - BOARD_3_MIN_ID, pwm);
     } else if (midiId >= BOARD_4_MIN_ID && midiId <= BOARD_4_MAX_ID) {
-      board4.write1(midiId - BOARD_4_MIN_ID, it->getPwm());
+      board4.write1(midiId - BOARD_4_MIN_ID, pwm);
     } else if (midiId >= BOARD_5_MIN_ID && midiId <= BOARD_5_MAX_ID) {
-      board5.write1(midiId - BOARD_5_MIN_ID, it->getPwm());
+      board5.write1(midiId - BOARD_5_MIN_ID, pwm);
     } else if (midiId >= BOARD_6_MIN_ID && midiId <= BOARD_6_MAX_ID) {
-      board6.write1(midiId - BOARD_6_MIN_ID, it->getPwm());
+      board6.write1(midiId - BOARD_6_MIN_ID, pwm);
     } else if (midiId >= BOARD_7_MIN_ID && midiId <= BOARD_7_MAX_ID) {
-      board7.write1(midiId - BOARD_7_MIN_ID, it->getPwm());
+      board7.write1(midiId - BOARD_7_MIN_ID, pwm);
     } else if (midiId == 109) { // sustain
       board7.write1(SUSTAIN_1_INDEX, it->getPwm());
       board7.write1(SUSTAIN_2_INDEX, it->getPwm());
     }
-//    Serial.print("RUNNING COMMAND: ");
-//    Serial.print("Midi Id: ");
-//    Serial.print(it->getMidiId());
-//    Serial.print(", PWM: ");
-//    Serial.println(it->getPwm());
-    piano.commands.erase(it--);
+   Serial.print("RUNNING COMMAND: ");
+   Serial.print("Midi Id: ");
+   Serial.print(it->getMidiId());
+   Serial.print(", PWM: ");
+   Serial.println(it->getPwm());
+   piano.commands.erase(it--);
   }
 }
