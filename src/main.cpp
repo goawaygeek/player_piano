@@ -6,6 +6,15 @@
 #include "PCA9635.h"
 #include <stdint.h>
 
+#if ARDUINO_USB_MODE
+#warning This sketch must be used when USB is in OTG mode
+void setup() {}
+void loop() {}
+#else
+
+#include "USB.h"
+#include "esp32-hal-tinyusb.h"
+
 Piano piano;
 Sustain sustain;
 
@@ -17,7 +26,34 @@ PCA9635 board5(0x44);
 PCA9635 board6(0x45);
 PCA9635 board7(0x46);
 
-BLEMIDI_CREATE_INSTANCE("Amadeus", MIDI);
+// BLEMIDI_CREATE_INSTANCE("Amadeus", MIDI);
+
+extern "C" uint16_t tusb_midi_load_descriptor(uint8_t *dst, uint8_t *itf) {
+  uint8_t str_index = tinyusb_add_string_descriptor("Amadeus USB MIDI");
+  uint8_t ep_num = tinyusb_get_free_duplex_endpoint();
+  TU_VERIFY(ep_num != 0);
+  uint8_t descriptor[TUD_MIDI_DESC_LEN] = {
+      TUD_MIDI_DESCRIPTOR(*itf, str_index, ep_num, (uint8_t)(0x80 | ep_num), 64)
+  };
+  *itf += 1;
+  memcpy(dst, descriptor, TUD_MIDI_DESC_LEN);
+  return TUD_MIDI_DESC_LEN;
+}
+
+// Add USB event callback
+static void usbEventCallback(void *arg, esp_event_base_t event_base,
+                           int32_t event_id, void *event_data) {
+    if (event_base == ARDUINO_USB_EVENTS) {
+        switch (event_id) {
+        case ARDUINO_USB_STARTED_EVENT:
+            Serial.println("USB PLUGGED");
+            break;
+        case ARDUINO_USB_STOPPED_EVENT:
+            Serial.println("USB UNPLUGGED");
+            break;
+        }
+    }
+}
 
 bool isConnected = false;
 
@@ -25,8 +61,14 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Setup started");
 
+  // Initialize USB MIDI
+  USB.onEvent(usbEventCallback);
+  tinyusb_enable_interface(USB_INTERFACE_MIDI, TUD_MIDI_DESC_LEN,
+                          tusb_midi_load_descriptor);
+  USB.begin();
+
   //MIDI.begin(MIDI_CHANNEL_OMNI);
-  MIDI.begin();
+  //MIDI.begin();
 
   // BLEMIDI.setHandleConnected([]() {
   //   isConnected = true;
@@ -54,17 +96,49 @@ void setup() {
 //  schedule.poweredOn();
 
   // UPDATE: this needs to use the addToSchedule function
-  MIDI.setHandleNoteOn([](uint8_t _, uint8_t noteId, uint8_t velocity) { 
-    piano.scheduleNote(noteId, velocity); 
-    Serial.print("Received note on: ");
-    Serial.println(velocity); });
-  MIDI.setHandleNoteOff([](uint8_t _, uint8_t noteId, uint8_t velocity) { 
-    piano.scheduleNote(noteId, 0); 
-    Serial.println("Received note off!"); });
-  MIDI.setHandleControlChange([](uint8_t channel, uint8_t number, uint8_t value) { 
-    piano.scheduleSustain(channel, number, value); 
-    Serial.println("Received control change!");
-    });
+  // MIDI.setHandleNoteOn([](uint8_t _, uint8_t noteId, uint8_t velocity) { 
+  //   piano.scheduleNote(noteId, velocity); 
+  //   Serial.print("Received note on: ");
+  //   Serial.println(velocity); });
+  // MIDI.setHandleNoteOff([](uint8_t _, uint8_t noteId, uint8_t velocity) { 
+  //   piano.scheduleNote(noteId, 0); 
+  //   Serial.println("Received note off!"); });
+  // MIDI.setHandleControlChange([](uint8_t channel, uint8_t number, uint8_t value) { 
+  //   piano.scheduleSustain(channel, number, value); 
+  //   Serial.println("Received control change!");
+  //   });
+
+  // Replace MIDI handlers with USB MIDI reading task
+  xTaskCreate([](void *param) {
+    uint8_t packet[4];
+    while (true) {
+      delay(1);
+      while (tud_midi_available()) {
+        if (tud_midi_packet_read(packet)) {
+          uint8_t status = packet[1];
+          uint8_t data1 = packet[2];
+          uint8_t data2 = packet[3];
+          
+          // Note On
+          if ((status & 0xF0) == 0x90) {
+            piano.scheduleNote(data1, data2);
+            Serial.print("Received note on: ");
+            Serial.println(data2);
+          }
+          // Note Off
+          else if ((status & 0xF0) == 0x80) {
+            piano.scheduleNote(data1, 0);
+            Serial.println("Received note off!");
+          }
+          // Control Change
+          else if ((status & 0xF0) == 0xB0) {
+            piano.scheduleSustain(status & 0x0F, data1, data2);
+            Serial.println("Received control change!");
+          }
+        }
+      }
+    }
+  }, "midi_task", 2048, NULL, 5, NULL);
   
    Wire.begin(SDA_PIN, SCL_PIN);
   
@@ -106,7 +180,7 @@ void setup() {
 }
 
 void loop() {
-  MIDI.read();  
+  // MIDI.read();  
   // loop through the notes and and see if their schedule needs to be adjusted
   // Serial.println("Looping through notes");
   for (auto it = piano.notes.begin(); it != piano.notes.end(); it++) {
@@ -148,3 +222,5 @@ void loop() {
    piano.commands.erase(it--);
   }
 }
+
+#endif /* ARDUINO_USB_MODE */
