@@ -1,8 +1,6 @@
 #include "piano.h"
 
-void Piano::addNote(Note &note) { notes.push_back(note); }
 void Piano::addCommand(Command command) { commands.push_back(command); }
-
 
 vector<Note>::iterator Piano::find(int id) {
   if (id < MIN_NOTE_ID || id > MAX_NOTE_ID)
@@ -13,9 +11,8 @@ vector<Note>::iterator Piano::find(int id) {
 
 void Piano::initialize() {
   for (int id = MIN_NOTE_ID; id <= MAX_NOTE_ID; id++) {
-    Note &note = *new Note(id);
-    note.resetSchedule();
-    addNote(note);
+    notes.emplace_back(id);
+    notes.back().resetSchedule();
   }
 }
 

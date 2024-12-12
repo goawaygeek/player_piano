@@ -22,7 +22,6 @@ class Piano {
     // void setSustainIsActive(bool isActive, unsigned long now);
     void scheduleNote(uint8_t midiId, uint8_t velocity);
     void scheduleSustain(uint8_t channel, uint8_t number, uint8_t value);
-    void addNote(Note &note);
     void addCommand(Command command);
     vector<Note> notes;
     vector<Command> commands;
