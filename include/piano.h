@@ -1,5 +1,4 @@
 #include <vector>
-#include <algorithm>
 #include <stdint.h>
 #include <Arduino.h>
 #include "note.h"
@@ -17,7 +16,7 @@ class Piano {
   public:
     Piano() {};
     void initialize();
-    Note& find(int id);
+    vector<Note>::iterator find(int id);
     // bool getSustainIsActive();
     // unsigned long getSustainIsActiveSetAt();
     // void setSustainIsActive(bool isActive, unsigned long now);
