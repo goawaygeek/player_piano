@@ -121,19 +121,24 @@ void setup() {
           
           // Note On
           if ((status & 0xF0) == 0x90) {
-            piano.scheduleNote(data1, data2);
             Serial.print("Received note on: ");
+            Serial.print(data1);
+            Serial.print(" ");
             Serial.println(data2);
+            piano.scheduleNote(data1, data2);
+            Serial.println("Processed note on.");
           }
           // Note Off
           else if ((status & 0xF0) == 0x80) {
-            piano.scheduleNote(data1, 0);
             Serial.println("Received note off!");
+            piano.scheduleNote(data1, 0);
+            Serial.println("Processed note off.");
           }
           // Control Change
           else if ((status & 0xF0) == 0xB0) {
-            piano.scheduleSustain(status & 0x0F, data1, data2);
             Serial.println("Received control change!");
+            piano.scheduleSustain(status & 0x0F, data1, data2);
+            Serial.println("Processed control change.");
           }
         }
       }

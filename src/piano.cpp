@@ -18,6 +18,8 @@ void Piano::initialize() {
 }
 
 void Piano::scheduleNote(uint8_t midiId, uint8_t velocity) {
+  if (midiId < MIN_NOTE_ID || midiId > MAX_NOTE_ID)
+    return;
   Note &note = find(midiId);
   note.addToSchedule(velocity);
 }
