@@ -6,14 +6,22 @@
 PCA9635 board1(0x40);  // Default address
 
 void setup() {
-  // Give USB time to initialize
-  delay(2000);
+  // Give USB more time to initialize
+  delay(5000);  // Increased from 2000 to 5000
   
   Serial.begin(115200);
-  Serial.println("PCA9635 Test Program");
+  while (!Serial) {
+    ; // wait for serial port to connect
+  }
+  
+  Serial.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");  // Clear any old output
+  Serial.println("==========================================");
+  Serial.println("PCA9635 Test Program - STARTING");
+  Serial.println("==========================================");
   
   // Initialize I2C
   Wire.begin(SDA_PIN, SCL_PIN);
+  Serial.println("I2C initialized");
   
   // Try to initialize the PCA9635
   if (board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE)) {
@@ -46,7 +54,9 @@ void setup() {
 void loop() {
   // Blink output 11 to show it's working
   board1.write1(11, 255);  // Turn on
+  Serial.println("Output 11 ON");
   delay(500);
   board1.write1(11, 0);    // Turn off
+  Serial.println("Output 11 OFF");
   delay(500);
 } 
