@@ -40,7 +40,7 @@ void setup() {
   
   // IMPORTANT FIX: Use INVRT mode to make LOW outputs turn ON the MOSFETs
   // This inverts the logic so write1(pin, 0) turns ON the MOSFET and write1(pin, 255) turns it OFF
-  if (board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVRT)) {
+  if (board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT)) {
     printStatus("PCA9635 initialized successfully with INVERTED outputs!");
     
     // Set all channels to PWM mode and ensure they're OFF to start
