@@ -6,11 +6,19 @@
 // PCA9635 instance with confirmed address 0x40
 PCA9635 board1(0x40);
 
+// Configuration constants
+#define SOLENOID_ON 0      // Logic value to turn ON the N-channel MOSFET (LOW)
+#define SOLENOID_OFF 255   // Logic value to turn OFF the N-channel MOSFET (HIGH)
+#define PULSE_DURATION 100 // Solenoid activation pulse in milliseconds
+#define MIN_SUPPLY_VOLTAGE 10.0 // Minimum voltage required for reliable operation
+
 // Function prototypes
 void scanI2CBus();
 void testAllOutputs();
 void testSingleOutput(uint8_t outputPin);
+void pulseOutput(uint8_t outputPin, unsigned long duration);
 void printStatus(String message);
+float readSupplyVoltage(); // If you have a voltage monitoring pin
 
 void setup() {
   // Give USB time to initialize
@@ -30,16 +38,16 @@ void setup() {
   // Initialize the PCA9635 with correct configuration for solenoid driving
   printStatus("Initializing PCA9635...");
   
-  // Important: MODE2_INVRT bit should be OFF for driving N-channel MOSFETs (HIGH = ON)
-  // MODE2_TOTEMPOLE should be ON for better gate drive
-  if (board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE)) {
-    printStatus("PCA9635 initialized successfully!");
+  // IMPORTANT FIX: Use INVRT mode to make LOW outputs turn ON the MOSFETs
+  // This inverts the logic so write1(pin, 0) turns ON the MOSFET and write1(pin, 255) turns it OFF
+  if (board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVRT)) {
+    printStatus("PCA9635 initialized successfully with INVERTED outputs!");
     
-    // Set all channels to PWM mode
-    printStatus("Configuring all outputs as PWM mode...");
+    // Set all channels to PWM mode and ensure they're OFF to start
+    printStatus("Configuring all outputs as PWM mode (all OFF)...");
     for (int channel = 0; channel < board1.channelCount(); channel++) {
       board1.setLedDriverMode(channel, PCA9635_LEDPWM);
-      board1.write1(channel, 0);  // Start with all outputs OFF
+      board1.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
     }
     
     // Wait a moment
@@ -69,18 +77,21 @@ void loop() {
   static bool outputState = false;
   static unsigned long lastToggle = 0;
   
-  // Toggle the state of output 11 every 2 seconds
+  // Toggle the state of outputs 10 and 11 every 2 seconds
   if (millis() - lastToggle >= 2000) {
     outputState = !outputState;
-    Serial.print("Setting output 11 to ");
+    Serial.print("Setting output 10 and 11 to ");
     
     if (outputState) {
-      // Important: Use full 255 value for maximum gate drive
-      board1.write1(11, 255);
-      Serial.println("ON (255)");
+      // Turn ON the solenoids (using the correct SOLENOID_ON value)
+      board1.write1(11, SOLENOID_ON);
+      board1.write1(10, SOLENOID_ON);
+      Serial.println("ON");
     } else {
-      board1.write1(11, 0);
-      Serial.println("OFF (0)");
+      // Turn OFF the solenoids (using the correct SOLENOID_OFF value)
+      board1.write1(11, SOLENOID_OFF);
+      board1.write1(10, SOLENOID_OFF);
+      Serial.println("OFF");
     }
     
     lastToggle = millis();
@@ -106,16 +117,33 @@ void loop() {
       Serial.println("Running I2C scan");
       scanI2CBus();
     }
+    else if (input == "pulse") {
+      Serial.println("Sending pulse to all outputs");
+      for (int i = 0; i < 16; i++) {
+        pulseOutput(i, PULSE_DURATION);
+        delay(100);
+      }
+    }
+    else if (input.startsWith("pulse ")) {
+      int pin = input.substring(6).toInt();
+      if (pin >= 0 && pin < 16) {
+        Serial.print("Sending pulse to output ");
+        Serial.println(pin);
+        pulseOutput(pin, PULSE_DURATION);
+      }
+    }
     else {
       Serial.println("Commands:");
       Serial.println("0-15: Test specific output");
       Serial.println("all: Test all outputs");
       Serial.println("scan: Run I2C scan");
+      Serial.println("pulse: Pulse all outputs");
+      Serial.println("pulse X: Pulse output X");
     }
   }
 }
 
-// Function to test a single output
+// Function to test a single output with proper ON/OFF values
 void testSingleOutput(uint8_t outputPin) {
   if (outputPin >= 16) return;
   
@@ -125,24 +153,24 @@ void testSingleOutput(uint8_t outputPin) {
   
   // Turn off all outputs first
   for (int i = 0; i < 16; i++) {
-    board1.write1(i, 0);
+    board1.write1(i, SOLENOID_OFF);
   }
   
-  // Turn on the selected output at full power
+  // Turn on the selected output
   Serial.print("  Turning ON output ");
   Serial.println(outputPin);
-  board1.write1(outputPin, 255);  // Full ON for maximum gate drive
+  board1.write1(outputPin, SOLENOID_ON);  // Use the correct ON value
   
   delay(1000);  // Keep on for 1 second
   
   Serial.print("  Turning OFF output ");
   Serial.println(outputPin);
-  board1.write1(outputPin, 0);  // Turn off
+  board1.write1(outputPin, SOLENOID_OFF);  // Use the correct OFF value
   
   delay(500);  // Wait a moment before next test
 }
 
-// Function to test all outputs one by one
+// Function to test all outputs one by one with proper ON/OFF values
 void testAllOutputs() {
   Serial.println("Sequential test of all outputs...");
   
@@ -151,14 +179,33 @@ void testAllOutputs() {
     Serial.print(i);
     Serial.println(": ON");
     
-    board1.write1(i, 255);  // Turn on at full power
-    delay(500);             // Keep on for 0.5 seconds
-    board1.write1(i, 0);    // Turn off
+    board1.write1(i, SOLENOID_ON);   // Turn ON using the correct value
+    delay(500);                      // Keep on for 0.5 seconds
+    board1.write1(i, SOLENOID_OFF);  // Turn OFF using the correct value
     
     delay(200);  // Brief pause between outputs
   }
   
   Serial.println("All outputs tested.");
+}
+
+// New function to send a short pulse to a solenoid
+// This can help "kick" solenoids that might be stuck
+void pulseOutput(uint8_t outputPin, unsigned long duration) {
+  if (outputPin >= 16) return;
+  
+  Serial.print("Pulsing output ");
+  Serial.print(outputPin);
+  Serial.print(" for ");
+  Serial.print(duration);
+  Serial.println("ms");
+  
+  // Quick OFF-ON-OFF sequence
+  board1.write1(outputPin, SOLENOID_OFF);  // Ensure OFF
+  delay(50);
+  board1.write1(outputPin, SOLENOID_ON);   // Turn ON
+  delay(duration);                        // Hold for specified duration
+  board1.write1(outputPin, SOLENOID_OFF);  // Turn OFF
 }
 
 // Print status message with timestamp
