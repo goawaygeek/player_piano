@@ -3,8 +3,9 @@
 #include "PCA9635.h"
 #include "settings.h"
 
-// PCA9635 instance with confirmed address 0x40
-PCA9635 board1(0x40);
+// PCA9635 instances with their respective addresses
+PCA9635 board1(0x40); // Default board (no jumpers)
+PCA9635 board2(0x42); // Board with A1 jumper set
 
 // Configuration constants
 #define SOLENOID_ON 0      // Logic value to turn ON the N-channel MOSFET (LOW)
@@ -14,9 +15,9 @@ PCA9635 board1(0x40);
 
 // Function prototypes
 void scanI2CBus();
-void testAllOutputs();
-void testSingleOutput(uint8_t outputPin);
-void pulseOutput(uint8_t outputPin, unsigned long duration);
+void testAllOutputs(PCA9635 &board, String boardName);
+void testSingleOutput(PCA9635 &board, String boardName, uint8_t outputPin);
+void pulseOutput(PCA9635 &board, String boardName, uint8_t outputPin, unsigned long duration);
 void printStatus(String message);
 float readSupplyVoltage(); // If you have a voltage monitoring pin
 
@@ -26,7 +27,7 @@ void setup() {
   
   Serial.begin(115200);
   Serial.println("\n==========================================");
-  Serial.println("PCA9635 Solenoid Driver Troubleshooting");
+  Serial.println("PCA9635 Multi-Board Solenoid Driver");
   Serial.println("==========================================");
   
   // Initialize I2C
@@ -35,177 +36,207 @@ void setup() {
   // Run I2C scanner to confirm device presence
   scanI2CBus();
   
-  // Initialize the PCA9635 with correct configuration for solenoid driving
-  printStatus("Initializing PCA9635...");
+  // Initialize both PCA9635 boards with correct configuration for solenoid driving
+  printStatus("Initializing PCA9635 boards...");
   
-  // IMPORTANT FIX: Use INVRT mode to make LOW outputs turn ON the MOSFETs
+  // IMPORTANT: Use INVRT mode to make LOW outputs turn ON the MOSFETs
   // This inverts the logic so write1(pin, 0) turns ON the MOSFET and write1(pin, 255) turns it OFF
-  if (board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT)) {
-    printStatus("PCA9635 initialized successfully with INVERTED outputs!");
+  bool board1Init = board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
+  bool board2Init = board2.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
+  
+  if (board1Init) {
+    printStatus("Board 1 (0x40, default) initialized successfully with INVERTED outputs");
     
     // Set all channels to PWM mode and ensure they're OFF to start
-    printStatus("Configuring all outputs as PWM mode (all OFF)...");
     for (int channel = 0; channel < board1.channelCount(); channel++) {
       board1.setLedDriverMode(channel, PCA9635_LEDPWM);
       board1.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
     }
-    
-    // Wait a moment
-    delay(1000);
-    
-    // Start the testing sequence
-    printStatus("Beginning solenoid test sequence");
-    
-    // First test a specific output (e.g., PWM 11 that wasn't working)
-    printStatus("Testing PWM output 11 specifically");
-    testSingleOutput(11);
-    
-    // Then test all outputs sequentially
-    printStatus("Now testing all outputs sequentially");
-    testAllOutputs();
-    
-    printStatus("Initial test sequence complete");
   } else {
-    printStatus("Failed to initialize PCA9635!");
-    printStatus("Running I2C scan again to verify connection...");
-    scanI2CBus();
+    printStatus("Failed to initialize Board 1 (0x40)!");
+  }
+  
+  if (board2Init) {
+    printStatus("Board 2 (0x42, A1 jumper) initialized successfully with INVERTED outputs");
+    
+    // Set all channels to PWM mode and ensure they're OFF to start
+    for (int channel = 0; channel < board2.channelCount(); channel++) {
+      board2.setLedDriverMode(channel, PCA9635_LEDPWM);
+      board2.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
+    }
+  } else {
+    printStatus("Failed to initialize Board 2 (0x42)!");
+  }
+  
+  delay(1000);  // Wait a moment
+  
+  // If Board 2 was initialized successfully, test it
+  if (board2Init) {
+    printStatus("Beginning test sequence for Board 2 (A1 jumper set)");
+    testAllOutputs(board2, "Board 2");
+  } else {
+    printStatus("Skipping Board 2 tests due to initialization failure");
+  }
+}
+// Print help information
+void printHelp() {
+  Serial.println("Commands:");
+  Serial.println("1:X - Test output X on Board 1 (0x40, default address)");
+  Serial.println("2:X - Test output X on Board 2 (0x42, A1 jumper)");
+  Serial.println("1:all - Test all outputs on Board 1");
+  Serial.println("2:all - Test all outputs on Board 2");
+  Serial.println("1:pulse X - Pulse output X on Board 1");
+  Serial.println("2:pulse X - Pulse output X on Board 2");
+  Serial.println("1:pulse - Pulse all outputs on Board 1");
+  Serial.println("2:pulse - Pulse all outputs on Board 2");
+  Serial.println("scan - Run I2C scan");
+  Serial.println("X - Test output X on Board 2 (default if no board specified)");
+  Serial.println("all - Test all outputs on Board 2 (default if no board specified)");
+}
+
+
+// Process commands for a specific board
+void processCommand(PCA9635 &board, String boardName, String command) {
+  if (command.toInt() >= 0 && command.toInt() < 16) {
+    int pin = command.toInt();
+    Serial.print("Testing ");
+    Serial.print(boardName);
+    Serial.print(" pin ");
+    Serial.println(pin);
+    testSingleOutput(board, boardName, pin);
+  } 
+  else if (command == "all") {
+    Serial.print("Testing all ");
+    Serial.print(boardName);
+    Serial.println(" outputs sequentially");
+    testAllOutputs(board, boardName);
+  }
+  else if (command.startsWith("pulse ")) {
+    int pin = command.substring(6).toInt();
+    if (pin >= 0 && pin < 16) {
+      Serial.print("Sending pulse to ");
+      Serial.print(boardName);
+      Serial.print(" output ");
+      Serial.println(pin);
+      pulseOutput(board, boardName, pin, PULSE_DURATION);
+    }
+  }
+  else if (command == "pulse") {
+    Serial.print("Sending pulse to all ");
+    Serial.print(boardName);
+    Serial.println(" outputs");
+    for (int i = 0; i < 16; i++) {
+      pulseOutput(board, boardName, i, PULSE_DURATION);
+      delay(100);
+    }
+  }
+  else {
+    printHelp();
   }
 }
 
 void loop() {
-  // Continuous testing of specific output for debugging
-  static bool outputState = false;
-  static unsigned long lastToggle = 0;
-  
-  // Toggle the state of outputs 10 and 11 every 2 seconds
-  if (millis() - lastToggle >= 2000) {
-    outputState = !outputState;
-    Serial.print("Setting output 10 and 11 to ");
-    
-    if (outputState) {
-      // Turn ON the solenoids (using the correct SOLENOID_ON value)
-      board1.write1(11, SOLENOID_ON);
-      board1.write1(10, SOLENOID_ON);
-      Serial.println("ON");
-    } else {
-      // Turn OFF the solenoids (using the correct SOLENOID_OFF value)
-      board1.write1(11, SOLENOID_OFF);
-      board1.write1(10, SOLENOID_OFF);
-      Serial.println("OFF");
-    }
-    
-    lastToggle = millis();
-  }
-  
-  // Check for serial commands
+  // Process serial commands
   if (Serial.available() > 0) {
     String input = Serial.readStringUntil('\n');
     input.trim();
     
-    // Check if input is a number
-    if (input.toInt() >= 0 && input.toInt() < 16) {
-      int pin = input.toInt();
-      Serial.print("Testing pin ");
-      Serial.println(pin);
-      testSingleOutput(pin);
-    } 
-    else if (input == "all") {
-      Serial.println("Testing all outputs sequentially");
-      testAllOutputs();
+    // Process commands for both boards
+    if (input.startsWith("1:")) {
+      // Commands for Board 1 (default 0x40)
+      String boardCmd = input.substring(2);
+      processCommand(board1, "Board 1", boardCmd);
+    }
+    else if (input.startsWith("2:")) {
+      // Commands for Board 2 (A1 jumper, 0x42)
+      String boardCmd = input.substring(2);
+      processCommand(board2, "Board 2", boardCmd);
     }
     else if (input == "scan") {
       Serial.println("Running I2C scan");
       scanI2CBus();
     }
-    else if (input == "pulse") {
-      Serial.println("Sending pulse to all outputs");
-      for (int i = 0; i < 16; i++) {
-        pulseOutput(i, PULSE_DURATION);
-        delay(100);
-      }
-    }
-    else if (input.startsWith("pulse ")) {
-      int pin = input.substring(6).toInt();
-      if (pin >= 0 && pin < 16) {
-        Serial.print("Sending pulse to output ");
-        Serial.println(pin);
-        pulseOutput(pin, PULSE_DURATION);
-      }
+    else if (input == "help") {
+      printHelp();
     }
     else {
-      Serial.println("Commands:");
-      Serial.println("0-15: Test specific output");
-      Serial.println("all: Test all outputs");
-      Serial.println("scan: Run I2C scan");
-      Serial.println("pulse: Pulse all outputs");
-      Serial.println("pulse X: Pulse output X");
+      // Default to Board 2 if no board specified
+      processCommand(board2, "Board 2", input);
     }
   }
 }
 
 // Function to test a single output with proper ON/OFF values
-void testSingleOutput(uint8_t outputPin) {
+void testSingleOutput(PCA9635 &board, String boardName, uint8_t outputPin) {
   if (outputPin >= 16) return;
   
-  Serial.print("Testing output pin ");
+  Serial.print("Testing ");
+  Serial.print(boardName);
+  Serial.print(" output pin ");
   Serial.print(outputPin);
   Serial.println(":");
   
   // Turn off all outputs first
   for (int i = 0; i < 16; i++) {
-    board1.write1(i, SOLENOID_OFF);
+    board.write1(i, SOLENOID_OFF);
   }
   
   // Turn on the selected output
   Serial.print("  Turning ON output ");
   Serial.println(outputPin);
-  board1.write1(outputPin, SOLENOID_ON);  // Use the correct ON value
+  board.write1(outputPin, SOLENOID_ON);  // Use the correct ON value
   
-  delay(1000);  // Keep on for 1 second
+  delay(500);  // Keep on for 0.5 second
   
   Serial.print("  Turning OFF output ");
   Serial.println(outputPin);
-  board1.write1(outputPin, SOLENOID_OFF);  // Use the correct OFF value
+  board.write1(outputPin, SOLENOID_OFF);  // Use the correct OFF value
   
   delay(500);  // Wait a moment before next test
 }
 
 // Function to test all outputs one by one with proper ON/OFF values
-void testAllOutputs() {
-  Serial.println("Sequential test of all outputs...");
+void testAllOutputs(PCA9635 &board, String boardName) {
+  Serial.print("Sequential test of all ");
+  Serial.print(boardName);
+  Serial.println(" outputs...");
   
   for (int i = 0; i < 16; i++) {
-    Serial.print("Output ");
+    Serial.print(boardName);
+    Serial.print(" Output ");
     Serial.print(i);
     Serial.println(": ON");
     
-    board1.write1(i, SOLENOID_ON);   // Turn ON using the correct value
-    delay(500);                      // Keep on for 0.5 seconds
-    board1.write1(i, SOLENOID_OFF);  // Turn OFF using the correct value
+    board.write1(i, SOLENOID_ON);   // Turn ON using the correct value
+    delay(500);                     // Keep on for 0.5 seconds
+    board.write1(i, SOLENOID_OFF);  // Turn OFF using the correct value
     
     delay(200);  // Brief pause between outputs
   }
   
-  Serial.println("All outputs tested.");
+  Serial.print("All ");
+  Serial.print(boardName);
+  Serial.println(" outputs tested.");
 }
 
-// New function to send a short pulse to a solenoid
-// This can help "kick" solenoids that might be stuck
-void pulseOutput(uint8_t outputPin, unsigned long duration) {
+// Function to send a short pulse to a solenoid
+void pulseOutput(PCA9635 &board, String boardName, uint8_t outputPin, unsigned long duration) {
   if (outputPin >= 16) return;
   
-  Serial.print("Pulsing output ");
+  Serial.print("Pulsing ");
+  Serial.print(boardName);
+  Serial.print(" output ");
   Serial.print(outputPin);
   Serial.print(" for ");
   Serial.print(duration);
   Serial.println("ms");
   
   // Quick OFF-ON-OFF sequence
-  board1.write1(outputPin, SOLENOID_OFF);  // Ensure OFF
+  board.write1(outputPin, SOLENOID_OFF);  // Ensure OFF
   delay(50);
-  board1.write1(outputPin, SOLENOID_ON);   // Turn ON
+  board.write1(outputPin, SOLENOID_ON);   // Turn ON
   delay(duration);                        // Hold for specified duration
-  board1.write1(outputPin, SOLENOID_OFF);  // Turn OFF
+  board.write1(outputPin, SOLENOID_OFF);  // Turn OFF
 }
 
 // Print status message with timestamp
@@ -237,7 +268,9 @@ void scanI2CBus() {
       
       // Check if this might be a PCA9635
       if(address == 0x40) {
-        Serial.print(" (PCA9635 - MATCHES expected address!)");
+        Serial.print(" (PCA9635 Board 1 - default address)");
+      } else if(address == 0x42) {
+        Serial.print(" (PCA9635 Board 2 - A1 jumper set)");
       } else if(address >= 0x40 && address <= 0x7F) {
         Serial.print(" (Possible PCA9635)");
       }
