@@ -8,8 +8,8 @@ PCA9635 board1(0x40); // Default board (no jumpers)
 PCA9635 board2(0x42); // Board with A1 jumper set
 
 // Configuration constants
-#define SOLENOID_ON 0      // Logic value to turn ON the N-channel MOSFET (LOW)
-#define SOLENOID_OFF 255   // Logic value to turn OFF the N-channel MOSFET (HIGH)
+#define SOLENOID_ON 255      // Logic value to turn ON the N-channel MOSFET (LOW)
+#define SOLENOID_OFF 0   // Logic value to turn OFF the N-channel MOSFET (HIGH)
 #define PULSE_DURATION 100 // Solenoid activation pulse in milliseconds
 #define MIN_SUPPLY_VOLTAGE 10.0 // Minimum voltage required for reliable operation
 
