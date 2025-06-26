@@ -7,8 +7,8 @@
 PCA9635 board1(0x40); // Default board (no jumpers)
 PCA9635 board2(0x41); // Board with A0 jumper set
 PCA9635 board3(0x42); // Board with A1 jumper set
-PCA9635 board4(0x43); // Board with A2 jumper set
-PCA9635 board5(0x44); // Board with A3 jumper set
+PCA9635 board4(0x44); // Board with A2 jumper set
+PCA9635 board5(0x48); // Board with A3 jumper set
 
 // Configuration constants
 #define SOLENOID_ON 255      // Logic value to turn ON the N-channel MOSFET (LOW)
@@ -333,9 +333,15 @@ void scanI2CBus() {
       // Check if this might be a PCA9635
       if(address == 0x40) {
         Serial.print(" (PCA9635 Board 1 - default address)");
-      } else if(address == 0x42) {
-        Serial.print(" (PCA9635 Board 2 - A1 jumper set)");
-      } else if(address >= 0x40 && address <= 0x7F) {
+      } else if(address == 0x41) {
+        Serial.print(" (PCA9635 Board 2 - A0 jumper set)");
+      }else if(address == 0x42) {
+        Serial.print(" (PCA9635 Board 3 - A1 jumper set)");
+      }else if(address == 0x44) {
+        Serial.print(" (PCA9635 Board 4 - A2 jumper set)");
+      } else if(address == 0x48) {
+        Serial.print(" (PCA9635 Board 5 - A3 jumper set)");
+      }else if(address >= 0x40 && address <= 0x7F) {
         Serial.print(" (Possible PCA9635)");
       }
       Serial.println();
