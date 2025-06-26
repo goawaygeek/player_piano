@@ -6,6 +6,7 @@
 // PCA9635 instances with their respective addresses
 PCA9635 board1(0x40); // Default board (no jumpers)
 PCA9635 board2(0x42); // Board with A1 jumper set
+PCA9635 board3(0x44); // Board with A2 jumper set
 
 // Configuration constants
 #define SOLENOID_ON 255      // Logic value to turn ON the N-channel MOSFET (LOW)
@@ -43,6 +44,7 @@ void setup() {
   // This inverts the logic so write1(pin, 0) turns ON the MOSFET and write1(pin, 255) turns it OFF
   bool board1Init = board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
   bool board2Init = board2.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
+  bool board3Init = board3.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
   
   if (board1Init) {
     printStatus("Board 1 (0x40, default) initialized successfully with INVERTED outputs");
@@ -67,6 +69,18 @@ void setup() {
   } else {
     printStatus("Failed to initialize Board 2 (0x42)!");
   }
+
+  if (board3Init) {
+    printStatus("Board 3 (0x43, A2 jumper) initialized successfully with INVERTED outputs");
+    
+    // Set all channels to PWM mode and ensure they're OFF to start
+    for (int channel = 0; channel < board3.channelCount(); channel++) {
+      board3.setLedDriverMode(channel, PCA9635_LEDPWM);
+      board3.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
+    }
+  } else {
+    printStatus("Failed to initialize Board 3 (0x43)!");
+  }
   
   delay(1000);  // Wait a moment
   
@@ -77,6 +91,15 @@ void setup() {
   } else {
     printStatus("Skipping Board 2 tests due to initialization failure");
   }
+
+  // If Board 3 was initialized successfully, test it
+  if (board3Init) {
+    printStatus("Beginning test sequence for Board 2 (A2 jumper set)");
+    testAllOutputs(board3, "Board 3");
+  } else {
+    printStatus("Skipping Board 3 tests due to initialization failure");
+  }
+
 }
 // Print help information
 void printHelp() {
@@ -151,6 +174,11 @@ void loop() {
       // Commands for Board 2 (A1 jumper, 0x42)
       String boardCmd = input.substring(2);
       processCommand(board2, "Board 2", boardCmd);
+    } 
+    else if (input.startsWith("3:")) {
+      // Commands for Board 2 (A1 jumper, 0x42)
+      String boardCmd = input.substring(2);
+      processCommand(board3, "Board 3", boardCmd);
     }
     else if (input == "scan") {
       Serial.println("Running I2C scan");
@@ -161,7 +189,7 @@ void loop() {
     }
     else {
       // Default to Board 2 if no board specified
-      processCommand(board2, "Board 2", input);
+      processCommand(board1, "Board 1", input);
     }
   }
 }
