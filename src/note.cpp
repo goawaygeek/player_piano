@@ -1,8 +1,6 @@
 #include "note.h"
 #include "piano.h"
 
-#pragma once
-
 int Note::getMidiId() { return this->midiId; }
 
 int Note::calculateVelocity(int midiVelocity) {
