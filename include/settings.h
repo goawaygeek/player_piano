@@ -46,20 +46,16 @@ const int AUTO_RESET_MS      = 360000;
 // Delay Settings
 const int FULL_DELAY = MAX_STARTUP_MS + VELOCITY_MS + MAX_DEACTIVATE_MS;
 // BOARD_MIDI_VALUES
-const int BOARD_1_MIN_ID = 21;
-const int BOARD_1_MAX_ID = 35;
-const int BOARD_2_MIN_ID = 36;
-const int BOARD_2_MAX_ID = 47;
-const int BOARD_3_MIN_ID = 48;
-const int BOARD_3_MAX_ID = 59;
-const int BOARD_4_MIN_ID = 60;
-const int BOARD_4_MAX_ID = 71;
-const int BOARD_5_MIN_ID = 72;
-const int BOARD_5_MAX_ID = 83;
-const int BOARD_6_MIN_ID = 84;
-const int BOARD_6_MAX_ID = 95;
-const int BOARD_7_MIN_ID = 96;
-const int BOARD_7_MAX_ID = 108;
+const int BOARD_1_MIN_ID = 24;
+const int BOARD_1_MAX_ID = 39;
+const int BOARD_2_MIN_ID = 40;
+const int BOARD_2_MAX_ID = 55;
+const int BOARD_3_MIN_ID = 56;
+const int BOARD_3_MAX_ID = 71;
+const int BOARD_4_MIN_ID = 72;
+const int BOARD_4_MAX_ID = 87;
+const int BOARD_5_MIN_ID = 88;
+const int BOARD_5_MAX_ID = 103;
 const int SUSTAIN_1_INDEX = 13;
 const int SUSTAIN_2_INDEX = 14;
 // TODO: calibrate these values
