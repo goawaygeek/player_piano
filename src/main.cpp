@@ -10,7 +10,7 @@ void setup() {}
 void loop() {}
 #else
 
-// #include "USB.h"
+#include "USB.h"
 #include "esp32-hal-tinyusb.h"
 
 Piano piano;
@@ -63,19 +63,19 @@ void processMidiPacket(uint8_t *packet) {
 }
 
 // Add USB event callback
-// static void usbEventCallback(void *arg, esp_event_base_t event_base,
-//                            int32_t event_id, void *event_data) {
-//     if (event_base == ARDUINO_USB_EVENTS) {
-//         switch (event_id) {
-//         case ARDUINO_USB_STARTED_EVENT:
-//             Serial.println("USB PLUGGED");
-//             break;
-//         case ARDUINO_USB_STOPPED_EVENT:
-//             Serial.println("USB UNPLUGGED");
-//             break;
-//         }
-//     }
-// }
+static void usbEventCallback(void *arg, esp_event_base_t event_base,
+                           int32_t event_id, void *event_data) {
+    if (event_base == ARDUINO_USB_EVENTS) {
+        switch (event_id) {
+        case ARDUINO_USB_STARTED_EVENT:
+            Serial.println("USB PLUGGED");
+            break;
+        case ARDUINO_USB_STOPPED_EVENT:
+            Serial.println("USB UNPLUGGED");
+            break;
+        }
+    }
+}
 
 //bool isConnected = false;
 
