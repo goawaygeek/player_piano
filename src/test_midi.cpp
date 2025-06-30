@@ -1,6 +1,6 @@
 /*
- * Minimal ESP32-S3 USB MIDI Test
- * This strips away all the piano/PCA code to focus purely on USB MIDI enumeration
+ * Fixed ESP32-S3 USB MIDI Test
+ * Corrected descriptor loading and interface management
  */
 
 #include <stdint.h>
@@ -41,26 +41,36 @@ static void usbEventCallback(void *arg, esp_event_base_t event_base,
     }
 }
 
-// Custom MIDI descriptor function
+// Fixed MIDI descriptor function
 extern "C" uint16_t tusb_midi_load_descriptor(uint8_t *dst, uint8_t *itf) {
-    Serial.println("Loading MIDI descriptor...");
+    Serial.printf("Loading MIDI descriptor... Interface: %d\n", *itf);
     
-    uint8_t str_index = tinyusb_add_string_descriptor("ESP32-S3 MIDI Test");
+    // Add string descriptor for MIDI interface
+    uint8_t str_index = tinyusb_add_string_descriptor("ESP32-S3 MIDI");
+    if (str_index == 0) {
+        Serial.println("ERROR: Failed to add string descriptor!");
+        return 0;
+    }
+    
+    // Get free endpoint pair
     uint8_t ep_num = tinyusb_get_free_duplex_endpoint();
-    
-    Serial.printf("String index: %d, Endpoint: %d\n", str_index, ep_num);
-    
     if (ep_num == 0) {
         Serial.println("ERROR: No free endpoints available!");
         return 0;
     }
     
+    Serial.printf("MIDI: String index: %d, Endpoint: %d\n", str_index, ep_num);
+    
+    // Create descriptor with proper interface number
     uint8_t descriptor[TUD_MIDI_DESC_LEN] = {
         TUD_MIDI_DESCRIPTOR(*itf, str_index, ep_num, (uint8_t)(0x80 | ep_num), 64)
     };
     
-    *itf += 1;
+    // Copy descriptor
     memcpy(dst, descriptor, TUD_MIDI_DESC_LEN);
+    
+    // Increment interface counter
+    (*itf)++;
     
     Serial.printf("MIDI descriptor loaded successfully (length: %d)\n", TUD_MIDI_DESC_LEN);
     return TUD_MIDI_DESC_LEN;
@@ -93,16 +103,18 @@ void setup() {
     USB.onEvent(usbEventCallback);
     Serial.println("USB event callback registered");
     
-    // Enable TinyUSB interfaces
-    Serial.println("Enabling CDC interface...");
-    tinyusb_enable_interface(USB_INTERFACE_CDC, TUD_CDC_DESC_LEN, NULL);
-    
+    // Enable MIDI interface ONLY (no CDC to avoid conflicts)
     Serial.println("Enabling MIDI interface...");
-    tinyusb_enable_interface(USB_INTERFACE_MIDI, TUD_MIDI_DESC_LEN, tusb_midi_load_descriptor);
+    if (!tinyusb_enable_interface(USB_INTERFACE_MIDI, TUD_MIDI_DESC_LEN, tusb_midi_load_descriptor)) {
+        Serial.println("ERROR: Failed to enable MIDI interface!");
+        return;
+    }
     
     Serial.println("Starting USB...");
-    // Note: USB.begin() should be called AFTER enabling interfaces
     USB.begin();
+    
+    // Small delay to let USB initialize
+    delay(100);
     
     Serial.println("USB initialization complete");
     Serial.println("Please connect USB cable and check if device appears in MIDI setup");
@@ -174,6 +186,7 @@ void loop() {
         Serial.println("--- Status Report ---");
         Serial.printf("USB Connected: %s\n", usbConnected ? "YES" : "NO");
         Serial.printf("TinyUSB Mounted: %s\n", tud_mounted() ? "YES" : "NO");
+        Serial.printf("Free heap: %d bytes\n", ESP.getFreeHeap());
         Serial.printf("Uptime: %lu seconds\n", now / 1000);
         Serial.println("--------------------");
         lastStatus = now;
