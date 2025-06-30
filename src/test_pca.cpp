@@ -39,7 +39,7 @@ void setup() {
   // Run I2C scanner to confirm device presence
   scanI2CBus();
   
-  // Initialize both PCA9635 boards with correct configuration for solenoid driving
+  // Initialize PCA9635 boards with correct configuration for solenoid driving
   printStatus("Initializing PCA9635 boards...");
   
   // IMPORTANT: Use INVRT mode to make LOW outputs turn ON the MOSFETs
@@ -63,7 +63,7 @@ void setup() {
   }
   
   if (board2Init) {
-    printStatus("Board 2 (0x42, A0 jumper) initialized successfully with INVERTED outputs");
+    printStatus("Board 2 (0x41, A0 jumper) initialized successfully with INVERTED outputs");
     
     // Set all channels to PWM mode and ensure they're OFF to start
     for (int channel = 0; channel < board2.channelCount(); channel++) {
@@ -71,7 +71,7 @@ void setup() {
       board2.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
     }
   } else {
-    printStatus("Failed to initialize Board 2 (0x42)!");
+    printStatus("Failed to initialize Board 2 (0x41)!");
   }
 
   if (board3Init) {
@@ -87,7 +87,7 @@ void setup() {
   }
 
   if (board4Init) {
-    printStatus("Board 4 (0x43, A2 jumper) initialized successfully with INVERTED outputs");
+    printStatus("Board 4 (0x44, A2 jumper) initialized successfully with INVERTED outputs");
     
     // Set all channels to PWM mode and ensure they're OFF to start
     for (int channel = 0; channel < board4.channelCount(); channel++) {
@@ -95,11 +95,11 @@ void setup() {
       board4.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
     }
   } else {
-    printStatus("Failed to initialize Board 4 (0x43)!");
+    printStatus("Failed to initialize Board 4 (0x44)!");
   }
 
   if (board5Init) {
-    printStatus("Board 5 (0x44, A3 jumper) initialized successfully with INVERTED outputs");
+    printStatus("Board 5 (0x48, A3 jumper) initialized successfully with INVERTED outputs");
     
     // Set all channels to PWM mode and ensure they're OFF to start
     for (int channel = 0; channel < board5.channelCount(); channel++) {
@@ -107,58 +107,47 @@ void setup() {
       board5.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
     }
   } else {
-    printStatus("Failed to initialize Board 5 (0x43)!");
+    printStatus("Failed to initialize Board 5 (0x48)!");
   }
   
   delay(1000);  // Wait a moment
-  
-  /*
-  // If Board 2 was initialized successfully, test it
-  if (board2Init) {
-    printStatus("Beginning test sequence for Board 2 (A1 jumper set)");
-    testAllOutputs(board2, "Board 2");
-  } else {
-    printStatus("Skipping Board 2 tests due to initialization failure");
-  }
-
-  // If Board 3 was initialized successfully, test it
-  if (board3Init) {
-    printStatus("Beginning test sequence for Board 2 (A2 jumper set)");
-    testAllOutputs(board3, "Board 3");
-  } else {
-    printStatus("Skipping Board 3 tests due to initialization failure");
-  }
-  */
-
 }
+
 // Print help information
 void printHelp() {
   Serial.println("Commands:");
   Serial.println("1:X - Test output X on Board 1 (0x40, default address)");
-  Serial.println("2:X - Test output X on Board 2 (0x42, A1 jumper)");
+  Serial.println("2:X - Test output X on Board 2 (0x41, A0 jumper)");
+  Serial.println("3:X - Test output X on Board 3 (0x42, A1 jumper)");
+  Serial.println("4:X - Test output X on Board 4 (0x44, A2 jumper)");
+  Serial.println("5:X - Test output X on Board 5 (0x48, A3 jumper)");
   Serial.println("1:all - Test all outputs on Board 1");
   Serial.println("2:all - Test all outputs on Board 2");
+  Serial.println("3:all - Test all outputs on Board 3");
+  Serial.println("4:all - Test all outputs on Board 4");
+  Serial.println("5:all - Test all outputs on Board 5");
   Serial.println("1:pulse X - Pulse output X on Board 1");
   Serial.println("2:pulse X - Pulse output X on Board 2");
+  Serial.println("3:pulse X - Pulse output X on Board 3");
+  Serial.println("4:pulse X - Pulse output X on Board 4");
+  Serial.println("5:pulse X - Pulse output X on Board 5");
   Serial.println("1:pulse - Pulse all outputs on Board 1");
   Serial.println("2:pulse - Pulse all outputs on Board 2");
+  Serial.println("3:pulse - Pulse all outputs on Board 3");
+  Serial.println("4:pulse - Pulse all outputs on Board 4");
+  Serial.println("5:pulse - Pulse all outputs on Board 5");
   Serial.println("scan - Run I2C scan");
-  Serial.println("X - Test output X on Board 2 (default if no board specified)");
-  Serial.println("all - Test all outputs on Board 2 (default if no board specified)");
+  Serial.println("X - Test output X on Board 1 (default if no board specified)");
+  Serial.println("all - Test all outputs on Board 1 (default if no board specified)");
 }
-
 
 // Process commands for a specific board
 void processCommand(PCA9635 &board, String boardName, String command) {
-  if (command.toInt() >= 0 && command.toInt() < 16) {
-    int pin = command.toInt();
-    Serial.print("Testing ");
-    Serial.print(boardName);
-    Serial.print(" pin ");
-    Serial.println(pin);
-    testSingleOutput(board, boardName, pin);
-  } 
-  else if (command == "all") {
+  Serial.print("command: ");
+  Serial.println(command);
+  
+  // Check for non-numeric commands first
+  if (command == "all") {
     Serial.print("Testing all ");
     Serial.print(boardName);
     Serial.println(" outputs sequentially");
@@ -183,6 +172,19 @@ void processCommand(PCA9635 &board, String boardName, String command) {
       delay(100);
     }
   }
+  // Check for numeric commands (pin numbers) - but only if it's actually a valid number
+  else if (command.length() > 0 && (command.charAt(0) >= '0' && command.charAt(0) <= '9')) {
+    int pin = command.toInt();
+    if (pin >= 0 && pin < 16) {
+      Serial.print("Testing ");
+      Serial.print(boardName);
+      Serial.print(" pin ");
+      Serial.println(pin);
+      testSingleOutput(board, boardName, pin);
+    } else {
+      Serial.println("Invalid pin number. Use 0-15.");
+    }
+  }
   else {
     printHelp();
   }
@@ -194,24 +196,29 @@ void loop() {
     String input = Serial.readStringUntil('\n');
     input.trim();
     
-    // Process commands for both boards
+    // Process commands for all boards
     if (input.startsWith("1:")) {
       // Commands for Board 1 (default 0x40)
       String boardCmd = input.substring(2);
       processCommand(board1, "Board 1", boardCmd);
     }
     else if (input.startsWith("2:")) {
-      // Commands for Board 2 (A1 jumper, 0x42)
+      // Commands for Board 2 (A0 jumper, 0x41)
       String boardCmd = input.substring(2);
       processCommand(board2, "Board 2", boardCmd);
-    } 
+    }
+    else if (input.startsWith("3:")) {
+      // Commands for Board 3 (A1 jumper, 0x42) - THIS WAS MISSING!
+      String boardCmd = input.substring(2);
+      processCommand(board3, "Board 3", boardCmd);
+    }
     else if (input.startsWith("4:")) {
-      // Commands for Board 2 (A1 jumper, 0x42)
+      // Commands for Board 4 (A2 jumper, 0x44)
       String boardCmd = input.substring(2);
       processCommand(board4, "Board 4", boardCmd);
     }
     else if (input.startsWith("5:")) {
-      // Commands for Board 2 (A1 jumper, 0x42)
+      // Commands for Board 5 (A3 jumper, 0x48)
       String boardCmd = input.substring(2);
       processCommand(board5, "Board 5", boardCmd);
     }
@@ -223,7 +230,7 @@ void loop() {
       printHelp();
     }
     else {
-      // Default to Board 2 if no board specified
+      // Default to Board 1 if no board specified (changed from Board 2)
       processCommand(board1, "Board 1", input);
     }
   }
@@ -335,13 +342,13 @@ void scanI2CBus() {
         Serial.print(" (PCA9635 Board 1 - default address)");
       } else if(address == 0x41) {
         Serial.print(" (PCA9635 Board 2 - A0 jumper set)");
-      }else if(address == 0x42) {
+      } else if(address == 0x42) {
         Serial.print(" (PCA9635 Board 3 - A1 jumper set)");
-      }else if(address == 0x44) {
+      } else if(address == 0x44) {
         Serial.print(" (PCA9635 Board 4 - A2 jumper set)");
       } else if(address == 0x48) {
         Serial.print(" (PCA9635 Board 5 - A3 jumper set)");
-      }else if(address >= 0x40 && address <= 0x7F) {
+      } else if(address >= 0x40 && address <= 0x7F) {
         Serial.print(" (Possible PCA9635)");
       }
       Serial.println();
