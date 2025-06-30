@@ -26,17 +26,63 @@ PCA9635 board5(0x48);
 
 // BLEMIDI_CREATE_INSTANCE("Amadeus", MIDI);
 
+// Global variables to track interface state
+static uint8_t midi_itf_num = 0;
+static uint8_t midi_ep_in = 0;
+static uint8_t midi_ep_out = 0;
+
 extern "C" uint16_t tusb_midi_load_descriptor(uint8_t *dst, uint8_t *itf) {
-  uint8_t str_index = tinyusb_add_string_descriptor("Deru USB MIDI");
+  Serial.printf("Loading MIDI descriptor, interface number: %d\n", *itf);
+  
+  // Store interface number
+  midi_itf_num = *itf;
+  
+  // Get string descriptor index
+  uint8_t str_index = tinyusb_add_string_descriptor("ESP32 MIDI Device");
+  if (str_index == 0) {
+    Serial.println("ERROR: Failed to add string descriptor");
+    return 0;
+  }
+  Serial.printf("String descriptor index: %d\n", str_index);
+  
+  // Get free endpoint pair
   uint8_t ep_num = tinyusb_get_free_duplex_endpoint();
-  TU_VERIFY(ep_num != 0);
+  if (ep_num == 0) {
+    Serial.println("ERROR: No free duplex endpoint available");
+    return 0;
+  }
+  
+  midi_ep_out = ep_num;
+  midi_ep_in = 0x80 | ep_num;
+  
+  Serial.printf("Assigned endpoints: OUT=0x%02X, IN=0x%02X\n", midi_ep_out, midi_ep_in);
+  
+  // Create the descriptor using the macro
   uint8_t descriptor[TUD_MIDI_DESC_LEN] = {
-      TUD_MIDI_DESCRIPTOR(*itf, str_index, ep_num, (uint8_t)(0x80 | ep_num), 64)
+    TUD_MIDI_DESCRIPTOR(midi_itf_num, str_index, midi_ep_out, midi_ep_in, 64)
   };
-  *itf += 1;
+  
+  // Copy descriptor to destination
   memcpy(dst, descriptor, TUD_MIDI_DESC_LEN);
+  
+  // Increment interface number for next interface
+  (*itf)++;
+  
+  Serial.printf("MIDI descriptor created successfully, length: %d\n", TUD_MIDI_DESC_LEN);
   return TUD_MIDI_DESC_LEN;
 }
+
+// extern "C" uint16_t tusb_midi_load_descriptor(uint8_t *dst, uint8_t *itf) {
+//   uint8_t str_index = tinyusb_add_string_descriptor("Deru");
+//   uint8_t ep_num = tinyusb_get_free_duplex_endpoint();
+//   TU_VERIFY(ep_num != 0);
+//   uint8_t descriptor[TUD_MIDI_DESC_LEN] = {
+//       TUD_MIDI_DESCRIPTOR(*itf, str_index, ep_num, (uint8_t)(0x80 | ep_num), 64)
+//   };
+//   *itf += 1;
+//   memcpy(dst, descriptor, TUD_MIDI_DESC_LEN);
+//   return TUD_MIDI_DESC_LEN;
+// }
 
 
 void processMidiPacket(uint8_t *packet) {
@@ -73,6 +119,12 @@ static void usbEventCallback(void *arg, esp_event_base_t event_base,
         case ARDUINO_USB_STOPPED_EVENT:
             Serial.println("USB UNPLUGGED");
             break;
+        case ARDUINO_USB_SUSPEND_EVENT:
+            Serial.println("USB SUSPENDED");
+            break;
+        case ARDUINO_USB_RESUME_EVENT:
+            Serial.println("USB RESUMED");
+            break;
         }
     }
 }
@@ -86,6 +138,9 @@ void setup() {
   delay(1000);  // Allow serial to initialize
   Serial.println("Setup started");
 
+  // Register USB event callback
+  esp_event_handler_register(ARDUINO_USB_EVENTS, ESP_EVENT_ANY_ID, &usbEventCallback, NULL);
+
   // Initialize USB MIDI
   tinyusb_enable_interface(USB_INTERFACE_CDC, TUD_CDC_DESC_LEN, NULL);
   tinyusb_enable_interface(USB_INTERFACE_MIDI, TUD_MIDI_DESC_LEN,
@@ -93,6 +148,13 @@ void setup() {
   
   Serial.println("TinyUSB interfaces enabled");
   
+  // Start the USB stack
+  USB.begin();
+  Serial.println("USB stack started");
+
+  // Wait for USB to be ready
+  delay(1000);
+
 
   piano.initialize();
 
@@ -134,6 +196,7 @@ void setup() {
   // }, "midi_task", 2048, NULL, 5, NULL);
   
   Wire.begin(SDA_PIN, SCL_PIN);
+  Wire.setClock(100000);
   
   // Initialize PCA9635 boards
   PCA9635* boards[] = {&board1, &board2, &board3, &board4, &board5};
