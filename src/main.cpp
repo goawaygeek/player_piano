@@ -4,30 +4,30 @@
 #include "PCA9635.h"
 #include <stdint.h>
 
-#if ARDUINO_USB_MODE
+#if !ARDUINO_USB_MODE
 #warning This sketch must be used when USB is in OTG mode
 void setup() {}
 void loop() {}
 #else
 
-#include "USB.h"
+// #include "USB.h"
 #include "esp32-hal-tinyusb.h"
 
 Piano piano;
 Sustain sustain;
 
 PCA9635 board1(0x40);
-//PCA9635 board2(0x41);
+PCA9635 board2(0x41);
 PCA9635 board3(0x42);
-// PCA9635 board4(0x43);
-// PCA9635 board5(0x44);
+PCA9635 board4(0x44);
+PCA9635 board5(0x48);
 // PCA9635 board6(0x45);
 // PCA9635 board7(0x46);
 
 // BLEMIDI_CREATE_INSTANCE("Amadeus", MIDI);
 
 extern "C" uint16_t tusb_midi_load_descriptor(uint8_t *dst, uint8_t *itf) {
-  uint8_t str_index = tinyusb_add_string_descriptor("Amadeus USB MIDI");
+  uint8_t str_index = tinyusb_add_string_descriptor("Deru USB MIDI");
   uint8_t ep_num = tinyusb_get_free_duplex_endpoint();
   TU_VERIFY(ep_num != 0);
   uint8_t descriptor[TUD_MIDI_DESC_LEN] = {
@@ -38,116 +38,150 @@ extern "C" uint16_t tusb_midi_load_descriptor(uint8_t *dst, uint8_t *itf) {
   return TUD_MIDI_DESC_LEN;
 }
 
-// Add USB event callback
-static void usbEventCallback(void *arg, esp_event_base_t event_base,
-                           int32_t event_id, void *event_data) {
-    if (event_base == ARDUINO_USB_EVENTS) {
-        switch (event_id) {
-        case ARDUINO_USB_STARTED_EVENT:
-            Serial.println("USB PLUGGED");
-            break;
-        case ARDUINO_USB_STOPPED_EVENT:
-            Serial.println("USB UNPLUGGED");
-            break;
-        }
+
+void processMidiPacket(uint8_t *packet) {
+    uint8_t status = packet[1];
+    uint8_t data1 = packet[2];
+    uint8_t data2 = packet[3];
+    
+    // Note On
+    if ((status & 0xF0) == 0x90 && data2 > 0) {
+        Serial.printf("Note On: %d, Velocity: %d\n", data1, data2);
+        piano.scheduleNote(data1, data2);
+    }
+    // Note Off or Note On with velocity 0
+    else if ((status & 0xF0) == 0x80 || ((status & 0xF0) == 0x90 && data2 == 0)) {
+        Serial.printf("Note Off: %d\n", data1);
+        piano.scheduleNote(data1, 0);
+    }
+    // Control Change
+    else if ((status & 0xF0) == 0xB0) {
+        Serial.printf("Control Change: Channel %d, Control %d, Value %d\n", 
+                     status & 0x0F, data1, data2);
+        piano.scheduleSustain(status & 0x0F, data1, data2);
     }
 }
 
-bool isConnected = false;
+// Add USB event callback
+// static void usbEventCallback(void *arg, esp_event_base_t event_base,
+//                            int32_t event_id, void *event_data) {
+//     if (event_base == ARDUINO_USB_EVENTS) {
+//         switch (event_id) {
+//         case ARDUINO_USB_STARTED_EVENT:
+//             Serial.println("USB PLUGGED");
+//             break;
+//         case ARDUINO_USB_STOPPED_EVENT:
+//             Serial.println("USB UNPLUGGED");
+//             break;
+//         }
+//     }
+// }
+
+//bool isConnected = false;
+
+
 
 void setup() {
   Serial.begin(115200);
+  delay(1000);  // Allow serial to initialize
   Serial.println("Setup started");
 
   // Initialize USB MIDI
-  USB.onEvent(usbEventCallback);
+  tinyusb_enable_interface(USB_INTERFACE_CDC, TUD_CDC_DESC_LEN, NULL);
   tinyusb_enable_interface(USB_INTERFACE_MIDI, TUD_MIDI_DESC_LEN,
-                          tusb_midi_load_descriptor);
-  USB.begin();
+                           tusb_midi_load_descriptor);
   
+  Serial.println("TinyUSB interfaces enabled");
   
-  
-  
-  
-//   tinyusb_enable_interface(USB_INTERFACE_CDC, TUD_CDC_DESC_LEN, NULL);
-//   Serial.println("CDC interface enabled");
-  
-//   tinyusb_enable_interface(USB_INTERFACE_MIDI, TUD_MIDI_DESC_LEN,
-//                           tusb_midi_load_descriptor);
-//   Serial.println("TinyUSB interface enabled");
-
-// // Initialize USB MIDI
-//   USB.onEvent(usbEventCallback);
-//   Serial.println("USB event callback registered");
-
-//   USB.begin();
-//   Serial.println("USB begun");
-
-// // Wait for USB CDC to be ready
-//   while (!Serial) {
-//     delay(1);
-//   }
-
-  // Serial.begin(115200);
-  // Serial.setDebugOutput(true);
-  // Serial.println("Setup started");
 
   piano.initialize();
 
   // Replace MIDI handlers with USB MIDI reading task
+  // xTaskCreate([](void *param) {
+  //   uint8_t packet[4];
+  //   while (true) {
+  //     delay(1);
+  //     while (tud_midi_available()) {
+  //       if (tud_midi_packet_read(packet)) {
+  //         uint8_t status = packet[1];
+  //         uint8_t data1 = packet[2];
+  //         uint8_t data2 = packet[3];
+          
+  //         // Note On
+  //         if ((status & 0xF0) == 0x90) {
+  //           Serial.print("Received note on: ");
+  //           Serial.print(data1);
+  //           Serial.print(" ");
+  //           Serial.println(data2);
+  //           piano.scheduleNote(data1, data2);
+  //           Serial.println("Processed note on.");
+  //         }
+  //         // Note Off
+  //         else if ((status & 0xF0) == 0x80) {
+  //           Serial.println("Received note off!");
+  //           piano.scheduleNote(data1, 0);
+  //           Serial.println("Processed note off.");
+  //         }
+  //         // Control Change
+  //         else if ((status & 0xF0) == 0xB0) {
+  //           Serial.println("Received control change!");
+  //           piano.scheduleSustain(status & 0x0F, data1, data2);
+  //           Serial.println("Processed control change.");
+  //         }
+  //       }
+  //     }
+  //   }
+  // }, "midi_task", 2048, NULL, 5, NULL);
+  
+  Wire.begin(SDA_PIN, SCL_PIN);
+  
+  // Initialize PCA9635 boards
+  PCA9635* boards[] = {&board1, &board2, &board3, &board4, &board5};
+  const char* boardNames[] = {"Board1", "Board2", "Board3", "Board4", "Board5"};
+  
+  for (int i = 0; i < 5; i++) {
+    boards[i]->begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
+    Serial.printf("%s initialized\n", boardNames[i]);
+    
+    // Initialize all channels
+    for (int channel = 0; channel < boards[i]->channelCount(); channel++) {
+      boards[i]->setLedDriverMode(channel, PCA9635_LEDPWM);
+      boards[i]->write1(channel, 0);
+    }
+  }
+
   xTaskCreate([](void *param) {
     uint8_t packet[4];
+    Serial.println("MIDI task started");
+    
     while (true) {
-      delay(1);
+      // Check for MIDI packets
       while (tud_midi_available()) {
         if (tud_midi_packet_read(packet)) {
-          uint8_t status = packet[1];
-          uint8_t data1 = packet[2];
-          uint8_t data2 = packet[3];
-          
-          // Note On
-          if ((status & 0xF0) == 0x90) {
-            Serial.print("Received note on: ");
-            Serial.print(data1);
-            Serial.print(" ");
-            Serial.println(data2);
-            piano.scheduleNote(data1, data2);
-            Serial.println("Processed note on.");
-          }
-          // Note Off
-          else if ((status & 0xF0) == 0x80) {
-            Serial.println("Received note off!");
-            piano.scheduleNote(data1, 0);
-            Serial.println("Processed note off.");
-          }
-          // Control Change
-          else if ((status & 0xF0) == 0xB0) {
-            Serial.println("Received control change!");
-            piano.scheduleSustain(status & 0x0F, data1, data2);
-            Serial.println("Processed control change.");
-          }
+            processMidiPacket(packet);
         }
       }
+      
+      vTaskDelay(pdMS_TO_TICKS(1)); // 1ms delay
     }
-  }, "midi_task", 2048, NULL, 5, NULL);
+  }, "midi_task", 4096, NULL, 5, NULL);
   
-   Wire.begin(SDA_PIN, SCL_PIN);
   
-  board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
-  for (int channel = 0; channel < board1.channelCount(); channel++) {
-    board1.setLedDriverMode(channel, PCA9635_LEDPWM);
-    board1.write1(channel, 0);
-  }
+  // board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
+  // for (int channel = 0; channel < board1.channelCount(); channel++) {
+  //   board1.setLedDriverMode(channel, PCA9635_LEDPWM);
+  //   board1.write1(channel, 0);
+  // }
   // board2.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
   // for (int channel = 0; channel < board2.channelCount(); channel++) {
   //   board2.setLedDriverMode(channel, PCA9635_LEDPWM);
   //   board2.write1(channel, 0);
   // }
-  board3.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
-  for (int channel = 0; channel < board3.channelCount(); channel++) {
-    board3.setLedDriverMode(channel, PCA9635_LEDPWM);
-    board3.write1(channel, 0);
-  }
+  // board3.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
+  // for (int channel = 0; channel < board3.channelCount(); channel++) {
+  //   board3.setLedDriverMode(channel, PCA9635_LEDPWM);
+  //   board3.write1(channel, 0);
+  // }
   // board4.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
   // for (int channel = 0; channel < board4.channelCount(); channel++) {
   //   board4.setLedDriverMode(channel, PCA9635_LEDPWM);
@@ -168,10 +202,11 @@ void setup() {
   //   board7.setLedDriverMode(channel, PCA9635_LEDPWM);
   //   board7.write1(channel, 0);
   // }
+
+  Serial.println("Setup complete - Ready for MIDI input");
 }
 
 void loop() {
-  // MIDI.read();  
   // loop through the notes and and see if their schedule needs to be adjusted
   // Serial.println("Looping through notes");
   for (auto it = piano.notes.begin(); it != piano.notes.end(); it++) {
@@ -189,15 +224,15 @@ void loop() {
     //pwm = 90;
     if (midiId >= BOARD_1_MIN_ID && midiId <= BOARD_1_MAX_ID) {
       board1.write1(midiId - BOARD_1_MIN_ID, pwm);
-    } /*else if (midiId >= BOARD_2_MIN_ID && midiId <= BOARD_2_MAX_ID) {
+    } else if (midiId >= BOARD_2_MIN_ID && midiId <= BOARD_2_MAX_ID) {
       board2.write1(midiId - BOARD_2_MIN_ID, pwm);
-    } */else if (midiId >= BOARD_3_MIN_ID && midiId <= BOARD_3_MAX_ID) {
+    } else if (midiId >= BOARD_3_MIN_ID && midiId <= BOARD_3_MAX_ID) {
       board3.write1(midiId - BOARD_3_MIN_ID, pwm);
-    } /*else if (midiId >= BOARD_4_MIN_ID && midiId <= BOARD_4_MAX_ID) {
+    } else if (midiId >= BOARD_4_MIN_ID && midiId <= BOARD_4_MAX_ID) {
       board4.write1(midiId - BOARD_4_MIN_ID, pwm);
     } else if (midiId >= BOARD_5_MIN_ID && midiId <= BOARD_5_MAX_ID) {
       board5.write1(midiId - BOARD_5_MIN_ID, pwm);
-    } else if (midiId >= BOARD_6_MIN_ID && midiId <= BOARD_6_MAX_ID) {
+    } /*else if (midiId >= BOARD_6_MIN_ID && midiId <= BOARD_6_MAX_ID) {
       board6.write1(midiId - BOARD_6_MIN_ID, pwm);
     } else if (midiId >= BOARD_7_MIN_ID && midiId <= BOARD_7_MAX_ID) {
       board7.write1(midiId - BOARD_7_MIN_ID, pwm);
@@ -205,13 +240,11 @@ void loop() {
       board7.write1(SUSTAIN_1_INDEX, it->getPwm());
       board7.write1(SUSTAIN_2_INDEX, it->getPwm());
     }*/
-   Serial.print("RUNNING COMMAND: ");
-   Serial.print("Midi Id: ");
-   Serial.print(it->getMidiId());
-   Serial.print(", PWM: ");
-   Serial.println(it->getPwm());
-   piano.commands.erase(it--);
+    Serial.printf("Command executed - MIDI ID: %d, PWM: %d\n", midiId, pwm);
+    piano.commands.erase(it--);
   }
+
+  delay(1); // Small delay to prevent watchdog issues
 }
 
 #endif /* ARDUINO_USB_MODE */
