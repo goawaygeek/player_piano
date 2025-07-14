@@ -5,10 +5,10 @@
 
 // PCA9635 instances with their respective addresses
 PCA9635 board1(0x40); // Default board (no jumpers)
-PCA9635 board2(0x41); // Board with A0 jumper set
-PCA9635 board3(0x42); // Board with A1 jumper set
-PCA9635 board4(0x44); // Board with A2 jumper set
-PCA9635 board5(0x48); // Board with A3 jumper set
+// PCA9635 board2(0x41); // Board with A0 jumper set
+// PCA9635 board3(0x42); // Board with A1 jumper set
+// PCA9635 board4(0x44); // Board with A2 jumper set
+// PCA9635 board5(0x48); // Board with A3 jumper set
 
 // Configuration constants
 #define SOLENOID_ON 255      // Logic value to turn ON the N-channel MOSFET (LOW)
@@ -45,10 +45,10 @@ void setup() {
   // IMPORTANT: Use INVRT mode to make LOW outputs turn ON the MOSFETs
   // This inverts the logic so write1(pin, 0) turns ON the MOSFET and write1(pin, 255) turns it OFF
   bool board1Init = board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
-  bool board2Init = board2.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
-  bool board3Init = board3.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
-  bool board4Init = board4.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
-  bool board5Init = board5.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
+//   bool board2Init = board2.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
+//   bool board3Init = board3.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
+//   bool board4Init = board4.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
+//   bool board5Init = board5.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_TOTEMPOLE | PCA9635_MODE2_INVERT);
   
   if (board1Init) {
     printStatus("Board 1 (0x40, default) initialized successfully with INVERTED outputs");
@@ -62,53 +62,53 @@ void setup() {
     printStatus("Failed to initialize Board 1 (0x40)!");
   }
   
-  if (board2Init) {
-    printStatus("Board 2 (0x41, A0 jumper) initialized successfully with INVERTED outputs");
+//   if (board2Init) {
+//     printStatus("Board 2 (0x42, A0 jumper) initialized successfully with INVERTED outputs");
     
-    // Set all channels to PWM mode and ensure they're OFF to start
-    for (int channel = 0; channel < board2.channelCount(); channel++) {
-      board2.setLedDriverMode(channel, PCA9635_LEDPWM);
-      board2.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
-    }
-  } else {
-    printStatus("Failed to initialize Board 2 (0x41)!");
-  }
+//     // Set all channels to PWM mode and ensure they're OFF to start
+//     for (int channel = 0; channel < board2.channelCount(); channel++) {
+//       board2.setLedDriverMode(channel, PCA9635_LEDPWM);
+//       board2.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
+//     }
+//   } else {
+//     printStatus("Failed to initialize Board 2 (0x42)!");
+//   }
 
-  if (board3Init) {
-    printStatus("Board 3 (0x42, A1 jumper) initialized successfully with INVERTED outputs");
+//   if (board3Init) {
+//     printStatus("Board 3 (0x42, A1 jumper) initialized successfully with INVERTED outputs");
     
-    // Set all channels to PWM mode and ensure they're OFF to start
-    for (int channel = 0; channel < board3.channelCount(); channel++) {
-      board3.setLedDriverMode(channel, PCA9635_LEDPWM);
-      board3.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
-    }
-  } else {
-    printStatus("Failed to initialize Board 3 (0x42)!");
-  }
+//     // Set all channels to PWM mode and ensure they're OFF to start
+//     for (int channel = 0; channel < board3.channelCount(); channel++) {
+//       board3.setLedDriverMode(channel, PCA9635_LEDPWM);
+//       board3.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
+//     }
+//   } else {
+//     printStatus("Failed to initialize Board 3 (0x42)!");
+//   }
 
-  if (board4Init) {
-    printStatus("Board 4 (0x44, A2 jumper) initialized successfully with INVERTED outputs");
+//   if (board4Init) {
+//     printStatus("Board 4 (0x43, A2 jumper) initialized successfully with INVERTED outputs");
     
-    // Set all channels to PWM mode and ensure they're OFF to start
-    for (int channel = 0; channel < board4.channelCount(); channel++) {
-      board4.setLedDriverMode(channel, PCA9635_LEDPWM);
-      board4.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
-    }
-  } else {
-    printStatus("Failed to initialize Board 4 (0x44)!");
-  }
+//     // Set all channels to PWM mode and ensure they're OFF to start
+//     for (int channel = 0; channel < board4.channelCount(); channel++) {
+//       board4.setLedDriverMode(channel, PCA9635_LEDPWM);
+//       board4.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
+//     }
+//   } else {
+//     printStatus("Failed to initialize Board 4 (0x43)!");
+//   }
 
-  if (board5Init) {
-    printStatus("Board 5 (0x48, A3 jumper) initialized successfully with INVERTED outputs");
+//   if (board5Init) {
+//     printStatus("Board 5 (0x44, A3 jumper) initialized successfully with INVERTED outputs");
     
-    // Set all channels to PWM mode and ensure they're OFF to start
-    for (int channel = 0; channel < board5.channelCount(); channel++) {
-      board5.setLedDriverMode(channel, PCA9635_LEDPWM);
-      board5.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
-    }
-  } else {
-    printStatus("Failed to initialize Board 5 (0x48)!");
-  }
+//     // Set all channels to PWM mode and ensure they're OFF to start
+//     for (int channel = 0; channel < board5.channelCount(); channel++) {
+//       board5.setLedDriverMode(channel, PCA9635_LEDPWM);
+//       board5.write1(channel, SOLENOID_OFF);  // Start with all solenoids OFF
+//     }
+//   } else {
+//     printStatus("Failed to initialize Board 5 (0x43)!");
+//   }
   
   delay(1000);  // Wait a moment
 }
@@ -202,26 +202,21 @@ void loop() {
       String boardCmd = input.substring(2);
       processCommand(board1, "Board 1", boardCmd);
     }
-    else if (input.startsWith("2:")) {
-      // Commands for Board 2 (A0 jumper, 0x41)
-      String boardCmd = input.substring(2);
-      processCommand(board2, "Board 2", boardCmd);
-    }
-    else if (input.startsWith("3:")) {
-      // Commands for Board 3 (A1 jumper, 0x42) - THIS WAS MISSING!
-      String boardCmd = input.substring(2);
-      processCommand(board3, "Board 3", boardCmd);
-    }
-    else if (input.startsWith("4:")) {
-      // Commands for Board 4 (A2 jumper, 0x44)
-      String boardCmd = input.substring(2);
-      processCommand(board4, "Board 4", boardCmd);
-    }
-    else if (input.startsWith("5:")) {
-      // Commands for Board 5 (A3 jumper, 0x48)
-      String boardCmd = input.substring(2);
-      processCommand(board5, "Board 5", boardCmd);
-    }
+    // else if (input.startsWith("2:")) {
+    //   // Commands for Board 2 (A1 jumper, 0x42)
+    //   String boardCmd = input.substring(2);
+    //   processCommand(board2, "Board 2", boardCmd);
+    // } 
+    // else if (input.startsWith("4:")) {
+    //   // Commands for Board 2 (A1 jumper, 0x42)
+    //   String boardCmd = input.substring(2);
+    //   processCommand(board4, "Board 4", boardCmd);
+    // }
+    // else if (input.startsWith("5:")) {
+    //   // Commands for Board 2 (A1 jumper, 0x42)
+    //   String boardCmd = input.substring(2);
+    //   processCommand(board5, "Board 5", boardCmd);
+    // }
     else if (input == "scan") {
       Serial.println("Running I2C scan");
       scanI2CBus();
@@ -340,14 +335,14 @@ void scanI2CBus() {
       // Check if this might be a PCA9635
       if(address == 0x40) {
         Serial.print(" (PCA9635 Board 1 - default address)");
-      } else if(address == 0x41) {
-        Serial.print(" (PCA9635 Board 2 - A0 jumper set)");
-      } else if(address == 0x42) {
-        Serial.print(" (PCA9635 Board 3 - A1 jumper set)");
-      } else if(address == 0x44) {
-        Serial.print(" (PCA9635 Board 4 - A2 jumper set)");
-      } else if(address == 0x48) {
-        Serial.print(" (PCA9635 Board 5 - A3 jumper set)");
+      // } else if(address == 0x41) {
+      //   Serial.print(" (PCA9635 Board 2 - A0 jumper set)");
+      // } else if(address == 0x42) {
+      //   Serial.print(" (PCA9635 Board 3 - A1 jumper set)");
+      // } else if(address == 0x44) {
+      //   Serial.print(" (PCA9635 Board 4 - A2 jumper set)");
+      // } else if(address == 0x48) {
+      //   Serial.print(" (PCA9635 Board 5 - A3 jumper set)");
       } else if(address >= 0x40 && address <= 0x7F) {
         Serial.print(" (Possible PCA9635)");
       }
