@@ -28,6 +28,8 @@ const int MAX_NOTE_ID = 108;
 // ESP32-s3 settings:
 const int SDA_PIN = 8;
 const int SCL_PIN = 9;
+const int GREEN_LED_PIN = 38;
+const int RED_LED_PIN = 40;
 // ESP32 settings:
 // const int SDA_PIN = 21;
 // const int SCL_PIN = 22;

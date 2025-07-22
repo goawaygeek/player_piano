@@ -24,8 +24,7 @@ PCA9635 board3(0x42);
 PCA9635 board4(0x44);
 PCA9635 board5(0x48);
 
-// BLEMIDI_CREATE_INSTANCE("Amadeus", MIDI);
-
+// FIXME:  this code doesn't function properly
 extern "C" uint16_t tusb_midi_load_descriptor(uint8_t *dst, uint8_t *itf) {
   uint8_t str_index = tinyusb_add_string_descriptor("Amadeus USB MIDI");
   uint8_t ep_num = tinyusb_get_free_duplex_endpoint();
@@ -55,9 +54,58 @@ static void usbEventCallback(void *arg, esp_event_base_t event_base,
 
 bool isConnected = false;
 
+void initLEDs(){
+  pinMode(GREEN_LED_PIN, OUTPUT);
+  pinMode(RED_LED_PIN, OUTPUT);
+
+  // turn off both LEDs
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(RED_LED_PIN, LOW);
+}
+
+void setLEDs(bool success) {
+  if (success) {
+    digitalWrite(GREEN_LED_PIN, HIGH);
+    digitalWrite(RED_LED_PIN, LOW);
+  } else {
+    digitalWrite(GREEN_LED_PIN, LOW);
+    digitalWrite(RED_LED_PIN, HIGH);
+  }
+}
+
+void flashLED(bool success) {
+  if (success) {
+    digitalWrite(GREEN_LED_PIN, HIGH);
+  } else {
+    digitalWrite(RED_LED_PIN, HIGH);
+  }
+  delay(500);
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(RED_LED_PIN, LOW);
+  delay(500);
+}
+
+void flashLEDs(int repeat) {
+  for (int i = 0; i < repeat; i++) {
+    digitalWrite(GREEN_LED_PIN, HIGH);
+    digitalWrite(RED_LED_PIN, HIGH);
+    delay(250);
+    digitalWrite(GREEN_LED_PIN, LOW);
+    digitalWrite(RED_LED_PIN, LOW);
+    delay(250);
+  }
+}
+
 void setup() {
   Serial.begin(115200);
+
+  delay(1000); // allow serial to initialize
   Serial.println("Setup started");
+
+  initLEDs();
+  Serial.println("testing LEDs");
+  flashLEDs(3);
+  delay(500);
 
   // Initialize USB MIDI
   USB.onEvent(usbEventCallback);
@@ -65,46 +113,7 @@ void setup() {
                           tusb_midi_load_descriptor);
   USB.begin();
 
-  //MIDI.begin(MIDI_CHANNEL_OMNI);
-  //MIDI.begin();
-
-  // BLEMIDI.setHandleConnected([]() {
-  //   isConnected = true;
-  //   Serial.println("Connected!");
-  // });
-
-  // BLEMIDI.setHandleDisconnected([]() {
-  //   isConnected = false;
-  //   Serial.println("Disconnected :( ");
-  // });
-
-  // MIDI.setHandleNoteOn([](byte channel, byte note, byte velocity) {
-  //   Serial.println("Received note on!");
-  // });
-  // MIDI.setHandleNoteOff([](byte channel, byte note, byte velocity) {
-  //   Serial.println("Received note off!");
-  // });
-
-  
-
-//  BLEMIDI.setHandleConnected([]() { schedule.connected(); });
-//  BLEMIDI.setHandleDisconnected([]() { schedule.disconnected(); });
-
   piano.initialize();
-//  schedule.poweredOn();
-
-  // UPDATE: this needs to use the addToSchedule function
-  // MIDI.setHandleNoteOn([](uint8_t _, uint8_t noteId, uint8_t velocity) { 
-  //   piano.scheduleNote(noteId, velocity); 
-  //   Serial.print("Received note on: ");
-  //   Serial.println(velocity); });
-  // MIDI.setHandleNoteOff([](uint8_t _, uint8_t noteId, uint8_t velocity) { 
-  //   piano.scheduleNote(noteId, 0); 
-  //   Serial.println("Received note off!"); });
-  // MIDI.setHandleControlChange([](uint8_t channel, uint8_t number, uint8_t value) { 
-  //   piano.scheduleSustain(channel, number, value); 
-  //   Serial.println("Received control change!");
-  //   });
 
   // Replace MIDI handlers with USB MIDI reading task
   xTaskCreate([](void *param) {
@@ -143,43 +152,65 @@ void setup() {
     }
   }, "midi_task", 2048, NULL, 5, NULL);
   
-   Wire.begin(SDA_PIN, SCL_PIN);
+  Wire.begin(SDA_PIN, SCL_PIN);
+  bool allBoardsSuccessfullyInitialised = true;
+
+  bool board1Init = board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
+  flashLED(board1Init);
+  if (board1Init) {
+    for (int channel = 0; channel < board1.channelCount(); channel++) {
+      board1.setLedDriverMode(channel, PCA9635_LEDPWM);
+      board1.write1(channel, 0);
+    }
+  } else {
+    allBoardsSuccessfullyInitialised = false;
+  }
   
-  board1.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
-  for (int channel = 0; channel < board1.channelCount(); channel++) {
-    board1.setLedDriverMode(channel, PCA9635_LEDPWM);
-    board1.write1(channel, 0);
+  bool board2Init = board2.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
+  flashLED(board2Init);
+  if (board2Init) {
+    for (int channel = 0; channel < board2.channelCount(); channel++) {
+      board2.setLedDriverMode(channel, PCA9635_LEDPWM);
+      board2.write1(channel, 0);
+    }  
+  } else {
+    allBoardsSuccessfullyInitialised = false;
   }
-  board2.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
-  for (int channel = 0; channel < board2.channelCount(); channel++) {
-    board2.setLedDriverMode(channel, PCA9635_LEDPWM);
-    board2.write1(channel, 0);
+
+  bool board3Init = board3.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
+  flashLED(board3Init);
+  if (board3Init) {
+    for (int channel = 0; channel < board3.channelCount(); channel++) {
+      board3.setLedDriverMode(channel, PCA9635_LEDPWM);
+      board3.write1(channel, 0);
+    }
+  } else {
+    allBoardsSuccessfullyInitialised = false;
   }
-  board3.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
-  for (int channel = 0; channel < board3.channelCount(); channel++) {
-    board3.setLedDriverMode(channel, PCA9635_LEDPWM);
-    board3.write1(channel, 0);
+
+  bool board4Init = board4.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
+  flashLED(board4Init);
+  if (board4Init) {
+    for (int channel = 0; channel < board4.channelCount(); channel++) {
+      board4.setLedDriverMode(channel, PCA9635_LEDPWM);
+      board4.write1(channel, 0);
+    }
+  } else {
+    allBoardsSuccessfullyInitialised = false;
   }
-  board4.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
-  for (int channel = 0; channel < board4.channelCount(); channel++) {
-    board4.setLedDriverMode(channel, PCA9635_LEDPWM);
-    board4.write1(channel, 0);
+
+  bool board5Init = board5.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
+  flashLED(board5Init);
+  if (board5Init) {
+    for (int channel = 0; channel < board5.channelCount(); channel++) {
+      board5.setLedDriverMode(channel, PCA9635_LEDPWM);
+      board5.write1(channel, 0);
+    }
+  } else {
+    allBoardsSuccessfullyInitialised = false;
   }
-  board5.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
-  for (int channel = 0; channel < board5.channelCount(); channel++) {
-    board5.setLedDriverMode(channel, PCA9635_LEDPWM);
-    board5.write1(channel, 0);
-  }
-  // board6.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
-  // for (int channel = 0; channel < board6.channelCount(); channel++) {
-  //   board6.setLedDriverMode(channel, PCA9635_LEDPWM);
-  //   board6.write1(channel, 0);
-  // }
-  // board7.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
-  // for (int channel = 0; channel < board7.channelCount(); channel++) {
-  //   board7.setLedDriverMode(channel, PCA9635_LEDPWM);
-  //   board7.write1(channel, 0);
-  // }
+  
+  setLEDs(allBoardsSuccessfullyInitialised);
 }
 
 void loop() {
