@@ -31,6 +31,9 @@ const int SCL_PIN = 9;
 // ESP32 settings:
 // const int SDA_PIN = 21;
 // const int SCL_PIN = 22;
+// LED settings
+const int GREEN_LED_PIN = 38;
+const int RED_LED_PIN = 40;
 const int MIN_STARTUP_MS     = 18;
 const int MAX_STARTUP_MS     = 18;
 const int VELOCITY_MS        = 60; //45;
