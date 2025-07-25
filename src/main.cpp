@@ -152,6 +152,7 @@ void setup() {
     }
   }, "midi_task", 2048, NULL, 5, NULL);
   
+  Serial.println("testing boards");
   Wire.begin(SDA_PIN, SCL_PIN);
   bool allBoardsSuccessfullyInitialised = true;
 
@@ -164,6 +165,7 @@ void setup() {
     }
   } else {
     allBoardsSuccessfullyInitialised = false;
+    Serial.println("board not initialised");
   }
   
   bool board2Init = board2.begin(PCA9635_MODE1_NONE, PCA9635_MODE2_INVERT | PCA9635_MODE2_TOTEMPOLE);
