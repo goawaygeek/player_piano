@@ -67,46 +67,8 @@ void setup() {
                           tusb_midi_load_descriptor);
   USB.begin();
 
-  //MIDI.begin(MIDI_CHANNEL_OMNI);
-  //MIDI.begin();
-
-  // BLEMIDI.setHandleConnected([]() {
-  //   isConnected = true;
-  //   Serial.println("Connected!");
-  // });
-
-  // BLEMIDI.setHandleDisconnected([]() {
-  //   isConnected = false;
-  //   Serial.println("Disconnected :( ");
-  // });
-
-  // MIDI.setHandleNoteOn([](byte channel, byte note, byte velocity) {
-  //   Serial.println("Received note on!");
-  // });
-  // MIDI.setHandleNoteOff([](byte channel, byte note, byte velocity) {
-  //   Serial.println("Received note off!");
-  // });
-
-  
-
-//  BLEMIDI.setHandleConnected([]() { schedule.connected(); });
-//  BLEMIDI.setHandleDisconnected([]() { schedule.disconnected(); });
-
   piano.initialize();
-//  schedule.poweredOn();
 
-  // UPDATE: this needs to use the addToSchedule function
-  // MIDI.setHandleNoteOn([](uint8_t _, uint8_t noteId, uint8_t velocity) { 
-  //   piano.scheduleNote(noteId, velocity); 
-  //   Serial.print("Received note on: ");
-  //   Serial.println(velocity); });
-  // MIDI.setHandleNoteOff([](uint8_t _, uint8_t noteId, uint8_t velocity) { 
-  //   piano.scheduleNote(noteId, 0); 
-  //   Serial.println("Received note off!"); });
-  // MIDI.setHandleControlChange([](uint8_t channel, uint8_t number, uint8_t value) { 
-  //   piano.scheduleSustain(channel, number, value); 
-  //   Serial.println("Received control change!");
-  //   });
 
   // Replace MIDI handlers with USB MIDI reading task
   xTaskCreate([](void *param) {
